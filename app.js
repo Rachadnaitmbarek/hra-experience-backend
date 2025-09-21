@@ -14,9 +14,16 @@ connectToDb();
 // Init App
 const app = express();
 
-// Middlewares
-app.use(express.json());
+// Cors Policy
+// app.use(cors({
+//   origin: "*"
+// }));
 
+app.use(cors({
+  origin: ["http://localhost:8100", "http://localhost:8101", "http://localhost:4200"],
+  credentials: true,
+}));
+app.options("*", cors());
 // Security Headers (helmet)
 app.use(helmet());
 
@@ -32,18 +39,21 @@ app.use(rateLimiting({
   max:200,
 }));
 
-// Cors Policy
-app.use(cors({
-  origin: "*"
-}));
-
+// stripe route
+app.use(
+  "/stripe", 
+  express.raw({type: 'application/json'}),
+  require("./routes/stripe/stripeRoute")
+);
+// Middlewares
+app.use(express.json());
 // Routes
-app.use("/api/auth", require("./routes/authRoute"));
-app.use("/api/users", require("./routes/usersRoute"));
-app.use("/api/posts", require("./routes/postsRoute"));
-app.use("/api/comments", require("./routes/commentsRoute"));
-app.use("/api/categories", require("./routes/categoriesRoute"));
-app.use("/api/password",require("./routes/passwordRoute"));
+app.use("/api/auth", require("./routes/app/authRoute"));
+app.use("/api/users", require("./routes/app/usersRoute"));
+app.use("/api/Interests", require("./routes/app/interestsRoute"));
+app.use("/api/Wallets", require("./routes/app/walletRoute"));
+app.use("/api/hotels", require("./routes/app/hotelsRoute"));
+app.use("/api/hotelRoomBookings", require("./routes/app/bookingRoute"));
 
 // Error Handler Middleware
 app.use(notFound);

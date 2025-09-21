@@ -5,7 +5,22 @@ const passwordComplexity = require("joi-password-complexity");
 
 // User Schema
 const UserSchema = new mongoose.Schema({
-    username: {
+    stripeCustomerID: {
+        type: String,
+        unique: true,
+    },
+    picture: {
+        type: Object,
+        default: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460__480.png"
+    },
+    firstName: {
+        type: String,
+        required: true,
+        trim: true,
+        minlength: 2,
+        maxlength: 100,
+    },
+    lastName: {
         type: String,
         required: true,
         trim: true,
@@ -20,29 +35,23 @@ const UserSchema = new mongoose.Schema({
         maxlength: 100,
         unique: true,
     },
+    phone: {
+        type: String,
+        required: true,
+        trim: true,
+        minlength: 5,
+        maxlength: 100,
+        unique: true,
+    },
     password: {
         type: String,
         required: true,
         trim: true,
         minlength: 8,
     },
-    profilePhoto: {
-        type: Object,
-        default: {
-            url: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460__480.png",
-            publicId: null,
-        }
-    },
-    bio: {
-        type: String,
-    },
-    isAdmin: {
-        type:Boolean,
-        default: false,
-    },
     isAccountVerified: {
         type:Boolean,
-        default: true,
+        default: false,
     },
 }, {
     timestamps: true,
@@ -50,28 +59,89 @@ const UserSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Populate Posts That Belongs To This User When he/she Get his/her Profile
-UserSchema.virtual("posts", {
-    ref: "Post",
-    foreignField: "user",
-    localField: "_id",
-});
+
 
 // Generate Auth Token
 UserSchema.methods.generateAuthToken = function() {
-    return jwt.sign({id: this._id, isAdmin: this.isAdmin}, process.env.JWT_SECRET);
+    return jwt.sign({id: this._id}, process.env.JWT_SECRET);
 }
+
+UserSchema.methods.getInterests = async function() {
+    // return jwt.sign({id: this._id}, process.env.JWT_SECRET);
+    const UserInterest = mongoose.model('UserInterest');
+    const Interest = mongoose.model('Interest');
+    
+    const userInterests = await UserInterest.find({ userId: this._id });
+    const interestIds = userInterests.map(ui => ui.interestId);
+    const interests = await Interest.find({ _id: { $in: interestIds } });
+    
+    return interests;
+}
+
+UserSchema.methods.getInterests = async function() {
+    // return jwt.sign({id: this._id}, process.env.JWT_SECRET);
+    const UserInterest = mongoose.model('UserInterest');
+    const Interest = mongoose.model('Interest');
+    
+    const userInterests = await UserInterest.find({ userId: this._id });
+    const interestIds = userInterests.map(ui => ui.interestId);
+    const interests = await Interest.find({ _id: { $in: interestIds } });
+    
+    return interests;
+}
+
+UserSchema.methods.getWallet = async function() {
+    const Wallet = mongoose.model('Wallet');
+    const wallet = await Wallet.findOne({ userId: this._id });
+    return wallet;
+}
+
+
+UserSchema.methods.getActiveSubscription = async function() {
+    const Subscription = mongoose.model('Subscription');
+    const now = new Date();
+    const subscription = await Subscription.findOne({
+        userId: this._id,
+        active: true,
+        endDate: { $gte: now },
+        deletedAt: null
+    })
+    
+    return subscription;
+}
+
+
+
+// check user if exist or not
+UserSchema.statics.existsByEmailOrPhone = async function(email, phone, onlyNotVerifed = true) {
+    const user = await this.findOne({
+        $or: [
+            { email: email },
+            { phone: phone }
+        ]
+    });
+    return !!user;
+};
+
+
 
 // User Model
 const User = mongoose.model("User", UserSchema);
 
+UserSchema.virtual('fullname').get(function () {
+  return this.firstName + " " + this.lastName;
+})
+
 // Validate Register User
 function validateRegisterUser(obj) {
     const schema = Joi.object({
-        username: Joi.string().trim().min(2).max(100).required(),
+        firstName: Joi.string().trim().min(2).max(100).required(),
+        lastName: Joi.string().trim().min(2).max(100).required(),
+        phoneNumber: Joi.string().trim().min(5).max(100).required(),
         email: Joi.string().trim().min(5).max(100).required().email(),
         password: passwordComplexity().required(),
-    });
+        verifyPassword: Joi.string().required().valid(Joi.ref("password"))
+    }).unknown(true);
     return schema.validate(obj);
 }
 
@@ -80,7 +150,7 @@ function validateLoginUser(obj) {
     const schema = Joi.object({
         email: Joi.string().trim().min(5).max(100).required().email(),
         password: Joi.string().trim().min(8).required(),
-    });
+    }).unknown(true);
     return schema.validate(obj);
 }
 

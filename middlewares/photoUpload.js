@@ -1,31 +1,23 @@
 const path = require("path");
+const fs = require("fs");
 const multer = require("multer");
 
-// Photo Storage
 const photoStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "../images"));
+    const uploadPath = path.join(__dirname, "images");
+
+    // create folder if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    if (file) {
-      cb(null, new Date().toISOString().replace(/:/g, "-") + file.originalname);
-    } else {
-      cb(null, false);
-    }
+    // save with ISO-like timestamp and original extension
+    const uniqueName = new Date().toISOString().replace(/:/g, "-") + file.originalname;
+    cb(null, uniqueName);
   },
 });
 
-// Photo Upload Middleware
-const photoUpload = multer({
-  storage: photoStorage,
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith("image")) {
-      cb(null, true);
-    } else {
-      cb({ message: "Unsupported file format" }, false);
-    }
-  },
-  limits: { fileSize: 1024 * 1024 }, // 1 megabyte
-});
-
-module.exports = photoUpload;
+module.exports = photoStorage
