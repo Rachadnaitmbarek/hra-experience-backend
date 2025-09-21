@@ -45,7 +45,7 @@ router
 router.route("/count").get(verifyTokenAndAdmin, getUsersCountCtrl);
 
 router.route("/update").post(verifyToken, updateUser);
-router.route("/changeProfileImage").post(verifyToken, photoUpload.single("image"), changeProfileImage);
+// router.route("/changeProfileImage").post(verifyToken, photoUpload.single("image"), changeProfileImage);
 
 
 module.exports = router;
